@@ -163,7 +163,7 @@ def build_html_email(
     </table>
 
     <p style="color:#bbb;font-size:11px;margin-top:24px;padding-top:12px;border-top:1px solid #eee;">
-      Data source: USGS Water Data API &bull; Site 09508500 &bull; Salt River below Stewart Mountain Dam, AZ<br>
+      Data source: USGS Water Data API &bull; Site 09502000 &bull; Salt River below Stewart Mountain Dam, AZ<br>
       To change thresholds, edit <code>config.json</code> in your GitHub repository.
     </p>
 

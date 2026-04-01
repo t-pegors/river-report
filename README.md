@@ -21,7 +21,7 @@ Edit [`config.json`](config.json) to change thresholds:
 
 ```json
 {
-  "gauge_site": "09508500",
+  "gauge_site": "09502000",
   "min_cfs": 800,
   "alert_change_pct": 25
 }
@@ -29,7 +29,7 @@ Edit [`config.json`](config.json) to change thresholds:
 
 | Field | Description | Default |
 |---|---|---|
-| `gauge_site` | USGS site number | `09508500` (Stewart Mtn Dam) |
+| `gauge_site` | USGS site number | `09502000` (Stewart Mtn Dam) |
 | `min_cfs` | Minimum CFS to call it a float day | `800` |
 | `alert_change_pct` | % change since yesterday that triggers a dramatic-change alert | `25` |
 
@@ -106,6 +106,6 @@ python src/main.py
 ## Data source
 
 [USGS Water Data OGC API](https://api.waterdata.usgs.gov/ogcapi/v0/openapi?f=html) —
-Site [09508500](https://waterdata.usgs.gov/monitoring-location/09508500/),
+Site [09502000](https://waterdata.usgs.gov/monitoring-location/09502000/),
 Salt River below Stewart Mountain Dam, AZ.
 Data is public domain.
