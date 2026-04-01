@@ -1,0 +1,45 @@
+name: Daily River Report
+
+on:
+  schedule:
+    # 7:00 AM MST = 14:00 UTC (UTC-7). Adjust if daylight saving applies (MDT = UTC-6 → 13:00 UTC).
+    - cron: "0 14 * * *"
+  workflow_dispatch:   # lets you trigger a test run manually from the Actions tab
+
+permissions:
+  contents: write      # required to commit the updated database back to the repo
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so the push step works correctly
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run river report
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
+        run: python src/main.py
+
+      - name: Commit updated database
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/river.db
+          # Only commit if the DB actually changed
+          git diff --staged --quiet || git commit -m "chore: river data $(date -u +%Y-%m-%d)"
+          git push

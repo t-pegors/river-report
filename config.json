@@ -1,0 +1,5 @@
+{
+  "gauge_site": "09508500",
+  "min_cfs": 800,
+  "alert_change_pct": 25
+}
