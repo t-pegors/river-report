@@ -99,6 +99,7 @@ def build_html_email(
     history: list[dict],
     alerts: list[dict],
     config: dict,
+    chart_b64: str | None = None,
 ) -> str:
     cfs      = current.get("cfs")
     height   = current.get("height_ft")
@@ -160,6 +161,16 @@ def build_html_email(
 
     <!-- Divider -->
     <hr style="border:none;border-top:1px solid #d4c9b0;margin:0 0 18px;">
+
+    <!-- Year-over-year chart -->
+    {f'''<div style="margin-bottom:22px;">
+      <h3 style="color:#2d5a1b;margin:0 0 10px;font-size:14px;text-transform:uppercase;
+                 letter-spacing:1px;font-family:Arial,sans-serif;">Year over Year</h3>
+      <img src="data:image/png;base64,{chart_b64}"
+           alt="CFS year-over-year chart"
+           style="width:100%;max-width:580px;border-radius:6px;border:1px solid #d4c9b0;">
+    </div>
+    <hr style="border:none;border-top:1px solid #d4c9b0;margin:0 0 18px;">''' if chart_b64 else ''}
 
     <!-- History table -->
     <h3 style="color:#2d5a1b;margin:0 0 10px;font-size:14px;text-transform:uppercase;

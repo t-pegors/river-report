@@ -18,7 +18,7 @@ def _connect() -> sqlite3.Connection:
 
 
 def init_db():
-    """Create the readings table if it does not exist."""
+    """Create all tables if they do not exist."""
     with _connect() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS readings (
@@ -27,6 +27,14 @@ def init_db():
                 cfs        REAL,
                 height_ft  REAL,
                 fetched_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS daily_values (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                date      TEXT NOT NULL UNIQUE,
+                cfs       REAL,
+                height_ft REAL
             )
         """)
         conn.commit()
@@ -50,6 +58,35 @@ def get_recent_readings(days: int = 7) -> list[dict]:
             (cutoff,),
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def upsert_daily_value(date: str, cfs: float | None, height_ft: float | None):
+    """Insert or update a single daily record (keyed on date YYYY-MM-DD)."""
+    with _connect() as conn:
+        conn.execute(
+            """INSERT INTO daily_values (date, cfs, height_ft) VALUES (?, ?, ?)
+               ON CONFLICT(date) DO UPDATE SET cfs=excluded.cfs, height_ft=excluded.height_ft""",
+            (date, cfs, height_ft),
+        )
+        conn.commit()
+
+
+def get_daily_values_for_year(year: int) -> list[dict]:
+    """All daily_values rows for a given year, sorted ascending."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT date, cfs, height_ft FROM daily_values WHERE date LIKE ? ORDER BY date",
+            (f"{year}-%",),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def count_daily_values_for_year(year: int) -> int:
+    with _connect() as conn:
+        return conn.execute(
+            "SELECT COUNT(*) FROM daily_values WHERE date LIKE ?",
+            (f"{year}-%",),
+        ).fetchone()[0]
 
 
 def get_yesterday_reading() -> dict | None:

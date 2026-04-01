@@ -1,5 +1,6 @@
 {
   "gauge_site": "09502000",
   "min_cfs": 800,
-  "alert_change_pct": 25
+  "alert_change_pct": 25,
+  "chart_years": [2024, 2025, 2026]
 }
