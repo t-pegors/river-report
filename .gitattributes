@@ -1,0 +1,4 @@
+# SQLite database is binary — prevent text-diff conflict markers.
+# On rebase conflicts, the custom 'sqlite-ours' driver keeps the local copy.
+data/river.db  binary
+data/river.db  merge=sqlite-ours

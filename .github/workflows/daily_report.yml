@@ -45,6 +45,6 @@ jobs:
             echo "No DB changes to commit."
           else
             git commit -m "chore: river data $(date -u +%Y-%m-%d)"
-            git pull --rebase origin main
+            git pull --rebase -X ours origin main
             git push
           fi
