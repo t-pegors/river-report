@@ -1,6 +1,6 @@
 # Salt River Daily Report
 
-Automated daily email report for the Salt River below Stewart Mountain Dam, Mesa AZ.
+Automated daily email report for the Salt River below Stewart Mountain Dam, Mesa AZ. This app can be set to any gauge at any location by change the config.json.
 
 Fetches live CFS and gauge height from the USGS Water Data API, stores all historical readings in a SQLite database, and sends a formatted HTML email every morning via GitHub Actions — no server or local computer required.
 
