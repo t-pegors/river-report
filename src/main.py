@@ -82,23 +82,23 @@ def main():
             print(f"    [{a['level'].upper()}] {a['message']}")
 
     # ── chart ────────────────────────────────────────────────────────────────
-    chart_b64 = None
+    chart_png = None
     if chart_years:
         import db as db_module
         ensure_historical_data(site_id, chart_years, db_module)
         year_data    = {yr: get_daily_values_for_year(yr) for yr in chart_years}
         current_year = max(chart_years)
         try:
-            chart_b64 = generate_chart(year_data, min_cfs, current_year)
-            print(f"  Chart generated ({len(chart_b64) // 1024} KB).")
+            chart_png = generate_chart(year_data, min_cfs, current_year)
+            print(f"  Chart generated ({len(chart_png) // 1024} KB).")
         except Exception as e:
             print(f"  Chart generation failed (non-fatal): {e}")
 
-    html    = build_html_email(reading, history, alerts, config, chart_b64=chart_b64)
+    html    = build_html_email(reading, history, alerts, config, chart_png=chart_png)
     subject = build_subject(reading.get("cfs"), alerts, min_cfs)
 
     print(f"  Subject: {subject}")
-    send_email(subject, html, config)
+    send_email(subject, html, config, chart_png=chart_png)
     print("Done.")
 
 

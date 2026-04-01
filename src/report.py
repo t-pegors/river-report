@@ -5,6 +5,7 @@ Credentials are read from environment variables GMAIL_USER and GMAIL_APP_PASSWOR
 
 import os
 import smtplib
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, timezone, timedelta
@@ -99,7 +100,7 @@ def build_html_email(
     history: list[dict],
     alerts: list[dict],
     config: dict,
-    chart_b64: str | None = None,
+    chart_png: bytes | None = None,
 ) -> str:
     cfs      = current.get("cfs")
     height   = current.get("height_ft")
@@ -162,15 +163,15 @@ def build_html_email(
     <!-- Divider -->
     <hr style="border:none;border-top:1px solid #d4c9b0;margin:0 0 18px;">
 
-    <!-- Year-over-year chart -->
-    {f'''<div style="margin-bottom:22px;">
+    <!-- Year-over-year chart (attached as CID to bypass email client restrictions) -->
+    {'''<div style="margin-bottom:22px;">
       <h3 style="color:#2d5a1b;margin:0 0 10px;font-size:14px;text-transform:uppercase;
                  letter-spacing:1px;font-family:Arial,sans-serif;">Year over Year</h3>
-      <img src="data:image/png;base64,{chart_b64}"
+      <img src="cid:river_chart"
            alt="CFS year-over-year chart"
            style="width:100%;max-width:580px;border-radius:6px;border:1px solid #d4c9b0;">
     </div>
-    <hr style="border:none;border-top:1px solid #d4c9b0;margin:0 0 18px;">''' if chart_b64 else ''}
+    <hr style="border:none;border-top:1px solid #d4c9b0;margin:0 0 18px;">''' if chart_png else ''}
 
     <!-- History table -->
     <h3 style="color:#2d5a1b;margin:0 0 10px;font-size:14px;text-transform:uppercase;
@@ -202,12 +203,15 @@ def build_html_email(
 </html>"""
 
 
-def send_email(subject: str, html_body: str, config: dict):
+def send_email(subject: str, html_body: str, config: dict, chart_png: bytes | None = None):
     """
     Send via Gmail SMTP SSL.
     Reads GMAIL_USER, GMAIL_APP_PASSWORD, and EMAIL_RECIPIENTS from env vars
     (set as GitHub Secrets — never stored in config.json).
     EMAIL_RECIPIENTS is a comma-separated list: "a@x.com,b@x.com"
+
+    If chart_png bytes are provided the image is attached as a MIME inline
+    attachment (Content-ID: river_chart) so all email clients render it.
     """
     gmail_user     = os.environ.get("GMAIL_USER", "").strip()
     gmail_password = os.environ.get("GMAIL_APP_PASSWORD", "").strip()
@@ -221,11 +225,19 @@ def send_email(subject: str, html_body: str, config: dict):
     if not recipients:
         raise ValueError("EMAIL_RECIPIENTS env var is not set or empty.")
 
-    msg = MIMEMultipart("alternative")
+    # multipart/related lets the HTML body reference the attached image by CID
+    msg = MIMEMultipart("related")
     msg["Subject"] = subject
     msg["From"]    = gmail_user
     msg["To"]      = ", ".join(recipients)
+
     msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    if chart_png:
+        img = MIMEImage(chart_png, _subtype="png")
+        img.add_header("Content-ID", "<river_chart>")
+        img.add_header("Content-Disposition", "inline", filename="river_chart.png")
+        msg.attach(img)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(gmail_user, gmail_password)

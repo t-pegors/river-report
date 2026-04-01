@@ -3,7 +3,6 @@ Generate a year-over-year CFS comparison chart as a base64-encoded PNG.
 Uses matplotlib with a warm, outdoorsy color palette to match the email theme.
 """
 
-import base64
 import io
 
 import matplotlib
@@ -29,7 +28,7 @@ def _day_of_year(date_str: str) -> int:
     return datetime.strptime(date_str, "%Y-%m-%d").timetuple().tm_yday
 
 
-def generate_chart(year_data: dict, min_cfs: int, current_year: int) -> str | None:
+def generate_chart(year_data: dict, min_cfs: int, current_year: int) -> bytes | None:
     """
     Build a CFS line chart comparing multiple years.
 
@@ -39,7 +38,7 @@ def generate_chart(year_data: dict, min_cfs: int, current_year: int) -> str | No
         current_year: the year whose line is drawn bold
 
     Returns:
-        Base64-encoded PNG string, or None if there is no plottable data.
+        Raw PNG bytes, or None if there is no plottable data.
     """
     years = sorted(year_data.keys())
     if not any(year_data[y] for y in years):
@@ -127,4 +126,4 @@ def generate_chart(year_data: dict, min_cfs: int, current_year: int) -> str | No
                 facecolor=fig.get_facecolor())
     plt.close(fig)
     buf.seek(0)
-    return base64.b64encode(buf.read()).decode("utf-8")
+    return buf.read()
