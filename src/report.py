@@ -7,16 +7,24 @@ import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+
+
+# Arizona does not observe daylight saving time — MST (UTC-7) year-round.
+MST = timezone(timedelta(hours=-7), name="MST")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def _fmt_ts(iso_str: str, fmt: str = "%B %d, %Y at %I:%M %p %Z") -> str:
+def _fmt_ts(iso_str: str, fmt: str = "%B %d, %Y at %I:%M %p MST") -> str:
     if not iso_str:
         return "Unknown time"
     try:
-        return datetime.fromisoformat(iso_str.replace("Z", "+00:00")).strftime(fmt)
+        return (
+            datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+            .astimezone(MST)
+            .strftime(fmt)
+        )
     except Exception:
         return iso_str
 
@@ -52,7 +60,7 @@ def _history_rows(history: list[dict]) -> str:
     for r in history[:8]:
         cfs_val = f"{r['cfs']:.0f}" if r.get("cfs") is not None else "N/A"
         ht_val  = f"{r['height_ft']:.2f}" if r.get("height_ft") is not None else "N/A"
-        ts_val  = _fmt_ts(r.get("fetched_at", ""), "%m/%d/%Y %I:%M %p")
+        ts_val  = _fmt_ts(r.get("fetched_at", ""), "%m/%d/%Y %I:%M %p MST")
         rows.append(
             f'<tr>'
             f'<td style="padding:7px 12px;border-bottom:1px solid #e0e0e0;">{ts_val}</td>'
@@ -144,7 +152,7 @@ def build_html_email(
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="background:#1565c0;color:white;">
-          <th style="padding:8px 12px;text-align:left;font-weight:600;">Date / Time (UTC)</th>
+          <th style="padding:8px 12px;text-align:left;font-weight:600;">Date / Time (MST)</th>
           <th style="padding:8px 12px;text-align:right;font-weight:600;">CFS</th>
           <th style="padding:8px 12px;text-align:right;font-weight:600;">Height (ft)</th>
         </tr>
