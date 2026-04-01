@@ -2,24 +2,35 @@
 
 Automated daily email report for the Salt River below Stewart Mountain Dam, Mesa AZ.
 
-Fetches live CFS (flow rate) and gauge height from the USGS Water Data API, stores all historical readings in a SQLite database, and emails a formatted report every morning via GitHub Actions — no server or local computer required.
+Fetches live CFS and gauge height from the USGS Water Data API, stores all historical readings in a SQLite database, and sends a formatted HTML email every morning via GitHub Actions — no server or local computer required.
 
 ---
 
-## What the email includes
+## Email preview
 
-- Current CFS and gauge height
-- Year-over-year CFS comparison chart (configurable years)
-- **Float Day: YES / NO** based on your configured minimum CFS
-- Alert if the river has changed dramatically since the previous reading
-- 7-day reading history table
-- All times displayed in MST (Arizona does not observe daylight saving time)
+### Daily report
+![Daily report email](screenshots/email_report.png)
+
+### Year-over-year chart
+![Year-over-year CFS chart](screenshots/chart.png)
+
+---
+
+## Features
+
+- **Live readings** — CFS and gauge height fetched from USGS every morning
+- **Float Day verdict** — YES / NO badge based on your configured CFS minimum
+- **Dramatic change alert** — flags when the river rises or drops sharply overnight
+- **Year-over-year chart** — matplotlib line graph comparing full-year CFS across multiple years, with float threshold line
+- **7-day history table** — recent readings at a glance
+- **All times in MST** — Arizona does not observe daylight saving time
+- **Fully automated** — runs on GitHub Actions, no computer needs to be on
 
 ---
 
 ## Configuration
 
-Edit [`config.json`](config.json) to change thresholds and chart years:
+[`config.json`](config.json) is the only file you need to edit for day-to-day changes:
 
 ```json
 {
@@ -32,38 +43,36 @@ Edit [`config.json`](config.json) to change thresholds and chart years:
 
 | Field | Description | Default |
 |---|---|---|
-| `gauge_site` | USGS site number | `09502000` (Salt River below Stewart Mtn Dam) |
-| `min_cfs` | Minimum CFS to call it a float day | `800` |
-| `alert_change_pct` | % change since yesterday that triggers a dramatic-change alert | `25` |
-| `chart_years` | Years to plot on the comparison chart | `[2024, 2025, 2026]` |
+| `gauge_site` | USGS monitoring site number | `09502000` |
+| `min_cfs` | Minimum CFS to show Float Day as YES | `800` |
+| `alert_change_pct` | % change from yesterday that triggers a dramatic-change alert | `25` |
+| `chart_years` | Years displayed on the comparison chart | `[2024, 2025, 2026]` |
 
-To add an older year to the chart, append it to `chart_years` — historical data is fetched from USGS automatically on the next Action run.
-
-Email recipients and credentials are stored as **GitHub Secrets** (never in this file).
+To add an older year to the chart, append it to `chart_years` and push — historical data is fetched from USGS automatically on the next Action run.
 
 ---
 
-## GitHub Secrets required
+## GitHub Secrets
 
-Set these under **Settings → Secrets and variables → Actions**:
+Set these under **Settings → Secrets and variables → Actions → New repository secret**:
 
 | Secret | Description |
 |---|---|
-| `GMAIL_USER` | Full Gmail address used to send reports |
-| `GMAIL_APP_PASSWORD` | 16-character Gmail App Password (not your real password) |
-| `EMAIL_RECIPIENTS` | Comma-separated recipient addresses: `a@example.com,b@example.com` |
+| `GMAIL_USER` | Full Gmail address used to send reports (e.g. `you@gmail.com`) |
+| `GMAIL_APP_PASSWORD` | 16-character Gmail App Password — **not** your regular Gmail password |
+| `EMAIL_RECIPIENTS` | Comma-separated recipient list: `you@gmail.com,friend@gmail.com` |
 
-See [Gmail App Passwords](https://support.google.com/accounts/answer/185833) for how to generate one.
+> **Gmail App Password:** Go to [myaccount.google.com](https://myaccount.google.com) → Security → 2-Step Verification must be ON → search "App passwords" → create one named `river-report`. See [Google's guide](https://support.google.com/accounts/answer/185833) for details.
 
 ---
 
 ## Schedule
 
-The report runs daily at **7:00 AM MST** (14:00 UTC) via GitHub Actions.
+Runs daily at **7:00 AM MST** (14:00 UTC). Arizona does not observe DST so this never needs adjusting.
 
-To trigger a manual test run: **Actions → Daily River Report → Run workflow**.
+To trigger a manual test run at any time: **Actions tab → Daily River Report → Run workflow**.
 
-To adjust the time, edit the `cron` line in [`.github/workflows/daily_report.yml`](.github/workflows/daily_report.yml):
+To change the time, edit the `cron` line in [`.github/workflows/daily_report.yml`](.github/workflows/daily_report.yml):
 
 ```yaml
 - cron: "0 14 * * *"   # 14:00 UTC = 7:00 AM MST
@@ -73,17 +82,23 @@ To adjust the time, edit the `cron` line in [`.github/workflows/daily_report.yml
 
 ## How the database works
 
-`data/river.db` is a SQLite database committed directly to this repository. **GitHub Actions is the sole owner of this file** — it checks out the repo, adds today's reading, and commits the updated DB back automatically.
+`data/river.db` is a SQLite database stored directly in this repository.
 
-On the very first run, Actions also backfills full-year daily data from USGS for every year listed in `chart_years`. No manual setup required.
+**GitHub Actions is the sole owner of this file.** On each run it:
+1. Checks out the repo (including the existing DB)
+2. Auto-backfills any years in `chart_years` that are missing data (first run only)
+3. Appends today's reading
+4. Commits the updated DB back to the repo
 
-**Never commit `data/river.db` from your local machine.** Doing so causes merge conflicts with Actions' commits. See the contributing workflow below.
+This means the historical data grows automatically over time with no manual intervention.
+
+> **Important:** Never commit `data/river.db` from your local machine. See the workflow below.
 
 ---
 
-## Contributing / making code changes
+## Making code changes
 
-Always add specific files rather than `git add .` to avoid accidentally staging the database:
+Always stage specific files rather than `git add .` — this prevents accidentally committing the database:
 
 ```bash
 git add src/ config.json requirements.txt .github/ .gitattributes README.md
@@ -92,7 +107,7 @@ git pull --rebase origin main
 git push
 ```
 
-If you ever get a `river.db` conflict during rebase, resolve it by keeping the remote version (Actions' copy is authoritative):
+If you get a `river.db` conflict during rebase (because Actions ran since your last pull), resolve it by keeping the remote copy:
 
 ```bash
 git checkout --theirs data/river.db
@@ -101,7 +116,7 @@ git rebase --continue
 git push
 ```
 
-One-time local setup (run once per machine after cloning):
+### One-time local setup (run once after cloning)
 
 ```bash
 git config pull.rebase true
@@ -115,21 +130,22 @@ git config merge.sqlite-ours.driver true
 
 ```
 ├── src/
-│   ├── fetch.py      # USGS Water Data API client
-│   ├── db.py         # SQLite read/write (readings + daily_values tables)
-│   ├── alerts.py     # Change detection and threshold logic
-│   ├── backfill.py   # Historical data fetch from USGS daily collection
-│   ├── chart.py      # Year-over-year matplotlib chart generator
-│   ├── report.py     # HTML email builder and Gmail sender
-│   └── main.py       # Entry point
+│   ├── main.py        # Entry point — orchestrates fetch, DB, alerts, chart, email
+│   ├── fetch.py       # USGS Water Data OGC API client
+│   ├── db.py          # SQLite read/write (readings + daily_values tables)
+│   ├── alerts.py      # Dramatic-change detection and float threshold logic
+│   ├── backfill.py    # Auto-fetches historical yearly data from USGS on first run
+│   ├── chart.py       # Builds the year-over-year matplotlib PNG chart
+│   └── report.py      # HTML email builder and Gmail SMTP sender
 ├── data/
-│   └── river.db      # SQLite database — managed exclusively by Actions
+│   └── river.db       # SQLite DB — managed exclusively by GitHub Actions
 ├── .github/
 │   └── workflows/
-│       └── daily_report.yml
-├── .gitattributes    # Marks river.db as binary to prevent merge conflicts
-├── config.json       # User-editable thresholds and chart years
-└── requirements.txt
+│       └── daily_report.yml  # Cron schedule, secrets, DB commit-back step
+├── .gitattributes     # Marks river.db as binary to prevent text-merge conflicts
+├── config.json        # Thresholds and chart years — the only file you need to edit
+├── requirements.txt   # Python dependencies (requests, matplotlib)
+└── LICENSE
 ```
 
 ---
@@ -139,4 +155,5 @@ git config merge.sqlite-ours.driver true
 [USGS Water Data OGC API](https://api.waterdata.usgs.gov/ogcapi/v0/openapi?f=html) —
 Site [09502000](https://waterdata.usgs.gov/monitoring-location/09502000/),
 Salt River below Stewart Mountain Dam, AZ.
-Data is public domain.
+Data is public domain. The legacy NWIS API (`waterservices.usgs.gov`) is being phased out;
+this project uses the current replacement.
