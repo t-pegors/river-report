@@ -11,9 +11,6 @@ from datetime import datetime
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
-LAT = 33.552841
-LON = -111.576543
-
 # WMO Weather interpretation codes → emoji + short label
 # https://open-meteo.com/en/docs#weathervariables
 WMO_CODES = {
@@ -53,9 +50,9 @@ def _parse_time(iso_str: str) -> datetime:
     return datetime.fromisoformat(iso_str)
 
 
-def get_weather() -> dict | None:
+def get_weather(lat: float, lon: float) -> dict | None:
     """
-    Fetch today's hourly forecast and sunrise/sunset for the dam location.
+    Fetch today's hourly forecast and sunrise/sunset for the given coordinates.
 
     Returns a dict with:
       sunrise      — "6:14 AM"
@@ -65,8 +62,8 @@ def get_weather() -> dict | None:
     Returns None on any API failure (weather is non-critical).
     """
     params = {
-        "latitude":          LAT,
-        "longitude":         LON,
+        "latitude":          lat,
+        "longitude":         lon,
         "hourly":            "temperature_2m,weather_code,wind_speed_10m,precipitation_probability",
         "daily":             "sunrise,sunset",
         "temperature_unit":  "fahrenheit",

@@ -95,8 +95,10 @@ def main():
         except Exception as e:
             print(f"  Chart generation failed (non-fatal): {e}")
 
+    lat = config.get("weather_lat", 33.552841)
+    lon = config.get("weather_lon", -111.576543)
     print("  Fetching weather forecast...")
-    weather = get_weather()
+    weather = get_weather(lat, lon)
     if weather:
         print(f"  Sunrise: {weather['sunrise']}  Sunset: {weather['sunset']}  "
               f"({len(weather['hourly'])} daylight hours)")

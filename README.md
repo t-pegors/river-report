@@ -49,6 +49,8 @@ Fetches live CFS and gauge height from the USGS Water Data API, stores all histo
 | `min_cfs` | Minimum CFS to show Float Day as YES | `800` |
 | `alert_change_pct` | % change from yesterday that triggers a dramatic-change alert | `25` |
 | `chart_years` | Years displayed on the comparison chart | `[2024, 2025, 2026]` |
+| `weather_lat` | Latitude for weather forecast location | `33.552841` |
+| `weather_lon` | Longitude for weather forecast location | `-111.576543` |
 
 To add an older year to the chart, append it to `chart_years` and push — historical data is fetched from USGS automatically on the next Action run.
 
