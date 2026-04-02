@@ -18,6 +18,7 @@ from db import (init_db, insert_reading, get_recent_readings,
 from alerts import check_alerts
 from backfill import ensure_historical_data
 from chart import generate_chart
+from weather import get_weather
 from report import build_html_email, send_email
 
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
@@ -94,7 +95,14 @@ def main():
         except Exception as e:
             print(f"  Chart generation failed (non-fatal): {e}")
 
-    html    = build_html_email(reading, history, alerts, config, chart_png=chart_png)
+    print("  Fetching weather forecast...")
+    weather = get_weather()
+    if weather:
+        print(f"  Sunrise: {weather['sunrise']}  Sunset: {weather['sunset']}  "
+              f"({len(weather['hourly'])} daylight hours)")
+
+    html    = build_html_email(reading, history, alerts, config,
+                               chart_png=chart_png, weather=weather)
     subject = build_subject(reading.get("cfs"), alerts, min_cfs)
 
     print(f"  Subject: {subject}")
