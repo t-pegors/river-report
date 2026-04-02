@@ -2,8 +2,8 @@ name: Daily River Report
 
 on:
   schedule:
-    # 7:00 AM MST = 14:00 UTC (UTC-7). Adjust if daylight saving applies (MDT = UTC-6 → 13:00 UTC).
-    - cron: "0 14 * * *"
+    # 5:00 AM MST = 12:00 UTC (UTC-7). Arizona does not observe daylight saving time.
+    - cron: "0 12 * * *"
   workflow_dispatch:   # lets you trigger a test run manually from the Actions tab
 
 permissions:

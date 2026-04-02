@@ -68,14 +68,14 @@ Set these under **Settings → Secrets and variables → Actions → New reposit
 
 ## Schedule
 
-Runs daily at **7:00 AM MST** (14:00 UTC). Arizona does not observe DST so this never needs adjusting.
+Runs daily at **5:00 AM MST** (12:00 UTC). Arizona does not observe DST so this never needs adjusting.
 
 To trigger a manual test run at any time: **Actions tab → Daily River Report → Run workflow**.
 
 To change the time, edit the `cron` line in [`.github/workflows/daily_report.yml`](.github/workflows/daily_report.yml):
 
 ```yaml
-- cron: "0 14 * * *"   # 14:00 UTC = 7:00 AM MST
+- cron: "0 12 * * *"   # 12:00 UTC = 5:00 AM MST
 ```
 
 ---
