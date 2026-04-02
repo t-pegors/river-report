@@ -95,12 +95,65 @@ def _change_summary(current_cfs: float | None, history: list[dict]) -> str:
 
 # ── public API ────────────────────────────────────────────────────────────────
 
+def _weather_section(weather: dict) -> str:
+    if not weather:
+        return ""
+
+    rows = ""
+    for h in weather["hourly"]:
+        rows += (
+            f'<tr>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #ddd5c0;color:#3a2e1e;white-space:nowrap;">'
+            f'  {h["hour_label"]}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #ddd5c0;font-size:18px;text-align:center;">'
+            f'  {h["emoji"]}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #ddd5c0;color:#3a2e1e;">'
+            f'  {h["condition"]}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #ddd5c0;text-align:right;'
+            f'  color:#1a6b9a;font-weight:600;">{h["temp_f"]}°F</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #ddd5c0;text-align:right;color:#3a2e1e;">'
+            f'  {h["precip_pct"]}%</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #ddd5c0;text-align:right;color:#3a2e1e;">'
+            f'  {h["wind_mph"]} mph</td>'
+            f'</tr>'
+        )
+
+    return f"""
+    <div style="margin-bottom:22px;">
+      <h3 style="color:#2d5a1b;margin:0 0 6px;font-size:14px;text-transform:uppercase;
+                 letter-spacing:1px;font-family:Arial,sans-serif;">Weather — Daylight Hours</h3>
+      <p style="margin:0 0 10px;font-size:13px;font-family:Arial,sans-serif;color:#6b5c3e;">
+        🌅 Sunrise: <strong>{weather["sunrise"]}</strong>
+        &nbsp;&nbsp;·&nbsp;&nbsp;
+        🌇 Sunset: <strong>{weather["sunset"]}</strong>
+      </p>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:Arial,sans-serif;">
+        <thead>
+          <tr style="background:#2d5a1b;color:#ffffff;">
+            <th style="padding:8px 10px;text-align:left;font-weight:600;">Hour</th>
+            <th style="padding:8px 10px;text-align:center;font-weight:600;"></th>
+            <th style="padding:8px 10px;text-align:left;font-weight:600;">Conditions</th>
+            <th style="padding:8px 10px;text-align:right;font-weight:600;">Temp</th>
+            <th style="padding:8px 10px;text-align:right;font-weight:600;">Rain</th>
+            <th style="padding:8px 10px;text-align:right;font-weight:600;">Wind</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows}
+        </tbody>
+      </table>
+    </div>
+    <hr style="border:none;border-top:1px solid #d4c9b0;margin:0 0 18px;">
+"""
+
+
 def build_html_email(
     current: dict,
     history: list[dict],
     alerts: list[dict],
     config: dict,
     chart_png: bytes | None = None,
+    weather: dict | None = None,
 ) -> str:
     cfs      = current.get("cfs")
     height   = current.get("height_ft")
@@ -162,6 +215,9 @@ def build_html_email(
 
     <!-- Divider -->
     <hr style="border:none;border-top:1px solid #d4c9b0;margin:0 0 18px;">
+
+    <!-- Weather -->
+    {_weather_section(weather)}
 
     <!-- Year-over-year chart (attached as CID to bypass email client restrictions) -->
     {'''<div style="margin-bottom:22px;">
