@@ -39,7 +39,9 @@ Fetches live CFS and gauge height from the USGS Water Data API, stores all histo
   "gauge_site": "09502000",
   "min_cfs": 800,
   "alert_change_pct": 25,
-  "chart_years": [2024, 2025, 2026]
+  "chart_years": [2024, 2025, 2026],
+  "weather_lat": 33.552841,
+  "weather_lon": -111.576543
 }
 ```
 
