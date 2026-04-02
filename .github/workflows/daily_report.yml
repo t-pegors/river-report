@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write      # required to commit the updated database back to the repo
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   report:
     runs-on: ubuntu-latest
