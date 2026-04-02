@@ -14,6 +14,8 @@ Fetches live CFS and gauge height from the USGS Water Data API, stores all histo
 ### Year-over-year chart
 ![Year-over-year CFS chart](screenshots/chart.png)
 
+> Screenshots may not reflect the latest features. Update after the next morning run.
+
 ---
 
 ## Features
@@ -21,6 +23,8 @@ Fetches live CFS and gauge height from the USGS Water Data API, stores all histo
 - **Live readings** — CFS and gauge height fetched from USGS every morning
 - **Float Day verdict** — YES / NO badge based on your configured CFS minimum
 - **Dramatic change alert** — flags when the river rises or drops sharply overnight
+- **Hourly weather forecast** — daylight hours only, with emoji icons, temp, rain %, and wind speed
+- **Sunrise & sunset times** — exact hour and minute for the dam location
 - **Year-over-year chart** — matplotlib line graph comparing full-year CFS across multiple years, with float threshold line
 - **7-day history table** — recent readings at a glance
 - **All times in MST** — Arizona does not observe daylight saving time
@@ -130,12 +134,13 @@ git config merge.sqlite-ours.driver true
 
 ```
 ├── src/
-│   ├── main.py        # Entry point — orchestrates fetch, DB, alerts, chart, email
-│   ├── fetch.py       # USGS Water Data OGC API client
+│   ├── main.py        # Entry point — orchestrates fetch, DB, alerts, weather, chart, email
+│   ├── fetch.py       # USGS Water Data OGC API client (river CFS + height)
 │   ├── db.py          # SQLite read/write (readings + daily_values tables)
 │   ├── alerts.py      # Dramatic-change detection and float threshold logic
 │   ├── backfill.py    # Auto-fetches historical yearly data from USGS on first run
 │   ├── chart.py       # Builds the year-over-year matplotlib PNG chart
+│   ├── weather.py     # Open-Meteo hourly forecast + sunrise/sunset (no API key)
 │   └── report.py      # HTML email builder and Gmail SMTP sender
 ├── data/
 │   └── river.db       # SQLite DB — managed exclusively by GitHub Actions
@@ -150,10 +155,13 @@ git config merge.sqlite-ours.driver true
 
 ---
 
-## Data source
+## Data sources
 
-[USGS Water Data OGC API](https://api.waterdata.usgs.gov/ogcapi/v0/openapi?f=html) —
-Site [09502000](https://waterdata.usgs.gov/monitoring-location/09502000/),
-Salt River below Stewart Mountain Dam, AZ.
-Data is public domain. The legacy NWIS API (`waterservices.usgs.gov`) is being phased out;
-this project uses the current replacement.
+**River data** — [USGS Water Data OGC API](https://api.waterdata.usgs.gov/ogcapi/v0/openapi?f=html)
+Site [09502000](https://waterdata.usgs.gov/monitoring-location/09502000/) — Salt River below Stewart Mountain Dam, AZ.
+Coordinates: 33.5528°N, 111.5765°W. Data is public domain.
+The legacy NWIS API (`waterservices.usgs.gov`) is being phased out; this project uses the current replacement.
+
+**Weather data** — [Open-Meteo](https://open-meteo.com/)
+Free, no API key required. Hourly forecast using WMO weather codes, with sunrise/sunset times.
+Location uses the same coordinates as the USGS gauge station.
