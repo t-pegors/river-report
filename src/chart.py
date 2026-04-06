@@ -12,10 +12,14 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from datetime import datetime
 
-# Earthy palette: oldest year → most recent (current year always last = river blue)
+# Palette: oldest → most recent. Current year is always assigned the last slot (river blue).
+# Designed to be distinct at a glance — avoids clustering similar hues together.
 _YEAR_COLORS = [
+    "#b07d3a",   # amber
+    "#c0533a",   # terracotta
     "#8d6e63",   # warm brown
     "#6a994e",   # olive green
+    "#9b59b6",   # purple
     "#1a6b9a",   # river blue  ← current year
 ]
 
