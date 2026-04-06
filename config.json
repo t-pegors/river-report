@@ -1,5 +1,10 @@
 {
   "gauge_site": "09502000",
+  "db_path": "data/river.db",
+  "report_name": "Salt River Daily Report",
+  "report_subtitle": "Below Stewart Mountain Dam",
+  "gauge_unit": "cfs",
+  "chart_title": "Salt River CFS — Year over Year",
   "min_cfs": 800,
   "alert_change_pct": 25,
   "chart_years": [2024, 2025, 2026],

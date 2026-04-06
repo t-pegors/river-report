@@ -1,0 +1,12 @@
+{
+  "gauge_site": "12371550",
+  "db_path": "data/flathead.db",
+  "report_name": "Flathead Lake Daily Report",
+  "report_subtitle": "Flathead Indian Reservation · Polson, MT",
+  "gauge_unit": "height_ft",
+  "chart_title": "Flathead Lake Level — Year over Year",
+  "alert_change_pct": 10,
+  "chart_years": [2024, 2025, 2026],
+  "weather_lat": 47.6878,
+  "weather_lon": -114.1661
+}

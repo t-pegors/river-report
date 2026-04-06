@@ -1,22 +1,27 @@
 """
-Backfill historical daily CFS values from the USGS daily collection.
+Backfill historical daily values from the USGS daily collection.
 Called automatically by main.py when a chart year is missing data.
 
-USGS daily endpoint returns one mean-discharge record per day.
+USGS daily endpoint returns one mean record per day.
+Supports both CFS (discharge) and height_ft (gauge height / lake level).
 """
 
 import requests
 from datetime import date
 
 USGS_DAILY_URL = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/daily/items"
-PARAM_CFS  = "00060"
-STAT_MEAN  = "00003"   # daily mean discharge
+PARAM_CFS    = "00060"   # Discharge, cubic feet per second
+PARAM_HEIGHT = "00065"   # Gauge height, feet
+STAT_MEAN    = "00003"   # daily mean
 
 
-def _fetch_year(site_id: str, year: int) -> list[dict]:
+def _fetch_year(site_id: str, year: int, gauge_unit: str = "cfs") -> list[dict]:
     """
-    Fetch daily mean CFS for an entire year (or year-to-date for the current year).
-    Returns a list of {"date": "YYYY-MM-DD", "cfs": float}.
+    Fetch daily mean values for an entire year (or year-to-date for the current year).
+
+    gauge_unit: "cfs" → fetch discharge; "height_ft" → fetch gauge height.
+    Returns a list of {"date": "YYYY-MM-DD", "cfs": float} or
+                      {"date": "YYYY-MM-DD", "height_ft": float}.
     """
     start = f"{year}-01-01"
     end   = min(f"{year}-12-31", date.today().isoformat())
@@ -24,9 +29,11 @@ def _fetch_year(site_id: str, year: int) -> list[dict]:
     if start > date.today().isoformat():
         return []
 
+    param_code = PARAM_HEIGHT if gauge_unit == "height_ft" else PARAM_CFS
+
     params = {
         "monitoring_location_id": f"USGS-{site_id}",
-        "parameter_code": PARAM_CFS,
+        "parameter_code": param_code,
         "statistic_id":   STAT_MEAN,
         "time":           f"{start}/{end}",
         "limit":          400,
@@ -42,37 +49,40 @@ def _fetch_year(site_id: str, year: int) -> list[dict]:
         ts      = props.get("time", "")
         if raw_val is None or not ts:
             continue
-        day = ts[:10]                    # keep only YYYY-MM-DD
-        cfs = float(raw_val)
-        # Keep one value per day (mean preferred; take first if duplicates)
+        day = ts[:10]
+        val = float(raw_val)
         if day not in results:
-            results[day] = cfs
+            results[day] = val
 
-    return [{"date": d, "cfs": c} for d, c in sorted(results.items())]
+    if gauge_unit == "height_ft":
+        return [{"date": d, "height_ft": v} for d, v in sorted(results.items())]
+    return [{"date": d, "cfs": v} for d, v in sorted(results.items())]
 
 
-def ensure_historical_data(site_id: str, years: list[int], db) -> None:
+def ensure_historical_data(site_id: str, years: list[int], db, gauge_unit: str = "cfs") -> None:
     """
-    For each year in `years`, fetch and store daily CFS if data is sparse or missing.
+    For each year in `years`, fetch and store daily values if data is sparse or missing.
     `db` is the db module (passed in to avoid circular imports).
+    gauge_unit: "cfs" or "height_ft" — controls which USGS parameter is fetched and stored.
     """
     today = date.today()
 
     for year in years:
         existing = db.count_daily_values_for_year(year)
 
-        # How many days should exist for this year?
         if year < today.year:
             expected = 366 if _is_leap(year) else 365
         else:
             expected = (today - date(year, 1, 1)).days + 1
 
-        # Fetch if we're missing more than 7 days worth of data
         if existing < expected - 7:
             print(f"  Backfilling {year}: have {existing}, expect ~{expected} — fetching...")
-            records = _fetch_year(site_id, year)
+            records = _fetch_year(site_id, year, gauge_unit)
             for r in records:
-                db.upsert_daily_value(r["date"], r["cfs"], None)
+                if gauge_unit == "height_ft":
+                    db.upsert_daily_value(r["date"], None, r["height_ft"])
+                else:
+                    db.upsert_daily_value(r["date"], r["cfs"], None)
             print(f"    Stored {len(records)} records for {year}.")
         else:
             print(f"  {year}: {existing} daily records (up to date).")

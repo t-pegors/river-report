@@ -1,5 +1,6 @@
 """
-Generate a year-over-year CFS comparison chart as a base64-encoded PNG.
+Generate a year-over-year comparison chart as a PNG.
+Supports CFS (river flow) or height_ft (lake level) as the primary metric.
 Uses matplotlib with a warm, outdoorsy color palette to match the email theme.
 """
 
@@ -28,14 +29,22 @@ def _day_of_year(date_str: str) -> int:
     return datetime.strptime(date_str, "%Y-%m-%d").timetuple().tm_yday
 
 
-def generate_chart(year_data: dict, min_cfs: int, current_year: int) -> bytes | None:
+def generate_chart(
+    year_data: dict,
+    min_cfs: int | None,
+    current_year: int,
+    gauge_unit: str = "cfs",
+    chart_title: str = "Salt River CFS — Year over Year",
+) -> bytes | None:
     """
-    Build a CFS line chart comparing multiple years.
+    Build a line chart comparing multiple years.
 
     Args:
-        year_data:    {year: [{"date": "YYYY-MM-DD", "cfs": float}, ...]}
-        min_cfs:      float threshold line value
+        year_data:    {year: [{"date": "YYYY-MM-DD", "cfs": float, "height_ft": float}, ...]}
+        min_cfs:      float threshold line value; pass None to omit the line
         current_year: the year whose line is drawn bold
+        gauge_unit:   "cfs" or "height_ft" — which column to plot
+        chart_title:  title string displayed above the chart
 
     Returns:
         Raw PNG bytes, or None if there is no plottable data.
@@ -48,24 +57,27 @@ def generate_chart(year_data: dict, min_cfs: int, current_year: int) -> bytes | 
     fig.patch.set_facecolor("#fffcf5")
     ax.set_facecolor("#f5f0e6")
 
-    num_years = len(years)
     for idx, year in enumerate(years):
         records = year_data.get(year, [])
         if not records:
             continue
 
         days = [_day_of_year(r["date"]) for r in records]
-        cfs  = [r["cfs"]               for r in records]
+        vals = [r.get(gauge_unit) for r in records]
+        # Drop rows where the metric is None
+        pairs = [(d, v) for d, v in zip(days, vals) if v is not None]
+        if not pairs:
+            continue
+        days, vals = zip(*pairs)
 
         is_current = (year == current_year)
-        # Pick color — always assign the last palette slot to the current year
         if is_current:
             color = _YEAR_COLORS[-1]
         else:
             color = _YEAR_COLORS[min(idx, len(_YEAR_COLORS) - 2)]
 
         ax.plot(
-            days, cfs,
+            days, vals,
             color     = color,
             linewidth = 2.2 if is_current else 1.4,
             alpha     = 1.0 if is_current else 0.70,
@@ -73,22 +85,24 @@ def generate_chart(year_data: dict, min_cfs: int, current_year: int) -> bytes | 
             zorder    = 10 if is_current else 5,
         )
 
-    # Float threshold
-    ax.axhline(
-        y         = min_cfs,
-        color     = "#8b3a1a",
-        linewidth = 1.3,
-        linestyle = "--",
-        alpha     = 0.85,
-        label     = f"Float min ({min_cfs} CFS)",
-        zorder    = 3,
-    )
+    # Optional float/threshold line
+    if min_cfs is not None:
+        ax.axhline(
+            y         = min_cfs,
+            color     = "#8b3a1a",
+            linewidth = 1.3,
+            linestyle = "--",
+            alpha     = 0.85,
+            label     = f"Float min ({min_cfs} CFS)",
+            zorder    = 3,
+        )
 
     # Axes
+    y_label = "Height (ft)" if gauge_unit == "height_ft" else "CFS"
     ax.set_xlim(1, 366)
     ax.set_xticks(_MONTH_STARTS)
     ax.set_xticklabels(_MONTH_LABELS, fontsize=9, color="#3a2e1e")
-    ax.set_ylabel("CFS", fontsize=10, color="#3a2e1e")
+    ax.set_ylabel(y_label, fontsize=10, color="#3a2e1e")
     ax.tick_params(axis="y", colors="#3a2e1e", labelsize=9)
     ax.tick_params(axis="x", length=0)
 
@@ -103,7 +117,7 @@ def generate_chart(year_data: dict, min_cfs: int, current_year: int) -> bytes | 
 
     # Title + legend
     ax.set_title(
-        "Salt River CFS — Year over Year",
+        chart_title,
         fontsize   = 12,
         fontweight = "bold",
         color      = "#2d5a1b",

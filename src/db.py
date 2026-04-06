@@ -1,24 +1,34 @@
 """
 SQLite storage for river readings.
-Database lives at data/river.db relative to the project root.
+Database path is configured at runtime via init_db(db_path=...).
 """
 
 import sqlite3
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-DB_PATH = Path(__file__).parent.parent / "data" / "river.db"
+_DB_PATH: Path | None = None
 
 
 def _connect() -> sqlite3.Connection:
-    DB_PATH.parent.mkdir(exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    if _DB_PATH is None:
+        raise RuntimeError("db.init_db() must be called before any other db function.")
+    _DB_PATH.parent.mkdir(exist_ok=True)
+    conn = sqlite3.connect(_DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
-def init_db():
-    """Create all tables if they do not exist."""
+def init_db(db_path: str | Path | None = None):
+    """
+    Set the database path and create all tables if they do not exist.
+    db_path defaults to data/river.db relative to the project root.
+    """
+    global _DB_PATH
+    if db_path is None:
+        db_path = Path(__file__).parent.parent / "data" / "river.db"
+    _DB_PATH = Path(db_path)
+
     with _connect() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS readings (

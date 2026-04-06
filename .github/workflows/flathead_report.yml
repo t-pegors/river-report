@@ -1,9 +1,9 @@
-name: Daily River Report
+name: Flathead Lake Daily Report
 
 on:
   schedule:
-    # 5:00 AM MST = 12:00 UTC (UTC-7). Arizona does not observe daylight saving time.
-    - cron: "0 12 * * *"
+    # 6:00 AM MT = 12:00 UTC (UTC-6 MDT in summer). Adjust to 13:00 UTC in winter (UTC-7 MST).
+    - cron: "0 13 * * *"
   workflow_dispatch:   # lets you trigger a test run manually from the Actions tab
 
 permissions:
@@ -20,7 +20,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Fetch full history so the push step works correctly
           fetch-depth: 1
 
       - name: Set up Python
@@ -31,23 +30,23 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run river report
+      - name: Run Flathead Lake report
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
-        run: python src/main.py --config config.json
+          EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS_FLATHEAD }}
+        run: python src/main.py --config flathead_config.json
 
       - name: Commit updated database
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/river.db
+          git add data/flathead.db
           # Only commit and push if the DB actually changed
           if git diff --staged --quiet; then
             echo "No DB changes to commit."
           else
-            git commit -m "chore: river data $(date -u +%Y-%m-%d)"
+            git commit -m "chore: flathead data $(date -u +%Y-%m-%d)"
             git pull --rebase -X ours origin main
             git push
           fi

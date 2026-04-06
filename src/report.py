@@ -56,18 +56,23 @@ def _alert_blocks(alerts: list[dict]) -> str:
     return "\n".join(blocks)
 
 
-def _history_rows(history: list[dict]) -> str:
+def _history_rows(history: list[dict], gauge_unit: str = "cfs") -> str:
     rows = []
     for i, r in enumerate(history[:8]):
-        cfs_val  = f"{r['cfs']:.0f}" if r.get("cfs") is not None else "N/A"
-        ht_val   = f"{r['height_ft']:.2f}" if r.get("height_ft") is not None else "N/A"
-        ts_val   = _fmt_ts(r.get("fetched_at", ""), "%m/%d/%Y %I:%M %p MST")
-        row_bg   = "#f5f0e6" if i % 2 == 0 else "#fffcf5"
+        if gauge_unit == "height_ft":
+            primary_val = f"{r['height_ft']:.2f} ft" if r.get("height_ft") is not None else "N/A"
+            secondary_val = f"{r['cfs']:.0f}" if r.get("cfs") is not None else "N/A"
+        else:
+            primary_val   = f"{r['cfs']:.0f}" if r.get("cfs") is not None else "N/A"
+            secondary_val = f"{r['height_ft']:.2f}" if r.get("height_ft") is not None else "N/A"
+
+        ts_val  = _fmt_ts(r.get("fetched_at", ""), "%m/%d/%Y %I:%M %p MST")
+        row_bg  = "#f5f0e6" if i % 2 == 0 else "#fffcf5"
         rows.append(
             f'<tr style="background:{row_bg};">'
             f'<td style="padding:8px 12px;border-bottom:1px solid #ddd5c0;color:#3a2e1e;">{ts_val}</td>'
-            f'<td style="padding:8px 12px;border-bottom:1px solid #ddd5c0;text-align:right;color:#1a6b9a;font-weight:600;">{cfs_val}</td>'
-            f'<td style="padding:8px 12px;border-bottom:1px solid #ddd5c0;text-align:right;color:#3a2e1e;">{ht_val}</td>'
+            f'<td style="padding:8px 12px;border-bottom:1px solid #ddd5c0;text-align:right;color:#1a6b9a;font-weight:600;">{primary_val}</td>'
+            f'<td style="padding:8px 12px;border-bottom:1px solid #ddd5c0;text-align:right;color:#3a2e1e;">{secondary_val}</td>'
             f'</tr>'
         )
     return "\n".join(rows) if rows else (
@@ -75,20 +80,23 @@ def _history_rows(history: list[dict]) -> str:
     )
 
 
-def _change_summary(current_cfs: float | None, history: list[dict]) -> str:
+def _change_summary(current: dict, history: list[dict], gauge_unit: str = "cfs") -> str:
     """One-liner showing change vs previous reading."""
-    if current_cfs is None or len(history) < 2:
+    field = "cfs" if gauge_unit == "cfs" else "height_ft"
+    unit  = "CFS" if gauge_unit == "cfs" else "ft"
+    current_val = current.get(field)
+    if current_val is None or len(history) < 2:
         return ""
-    prev_cfs = history[1].get("cfs") if len(history) > 1 else None
-    if prev_cfs is None or prev_cfs == 0:
+    prev_val = history[1].get(field) if len(history) > 1 else None
+    if prev_val is None or prev_val == 0:
         return ""
-    delta = current_cfs - prev_cfs
-    pct   = (delta / prev_cfs) * 100
+    delta = current_val - prev_val
+    pct   = (delta / prev_val) * 100
     arrow = "▲" if delta > 0 else "▼"
     color = "#8b3a1a" if delta > 0 else "#1a6b9a"
     return (
         f'<span style="color:{color};font-weight:bold;">'
-        f'{arrow} {abs(delta):.0f} CFS ({abs(pct):.1f}%) vs previous reading'
+        f'{arrow} {abs(delta):.2f} {unit} ({abs(pct):.1f}%) vs previous reading'
         f'</span>'
     )
 
@@ -147,55 +155,9 @@ def _weather_section(weather: dict) -> str:
 """
 
 
-def build_html_email(
-    current: dict,
-    history: list[dict],
-    alerts: list[dict],
-    config: dict,
-    chart_png: bytes | None = None,
-    weather: dict | None = None,
-) -> str:
-    cfs      = current.get("cfs")
-    height   = current.get("height_ft")
-    ts       = current.get("timestamp") or current.get("fetched_at", "")
-    min_cfs  = config.get("min_cfs", 600)
-
+def _float_day_section(cfs: float | None, min_cfs: int) -> str:
     verdict, badge_bg, badge_fg = _float_verdict(cfs, min_cfs)
-    cfs_display    = f"{cfs:.0f}" if cfs is not None else "N/A"
-    height_display = f"{height:.2f} ft" if height is not None else "N/A"
-    reading_time   = _fmt_ts(ts)
-    alert_html     = _alert_blocks(alerts)
-    change_html    = _change_summary(cfs, history)
-    history_html   = _history_rows(history)
-
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:Georgia,'Times New Roman',serif;max-width:620px;margin:0 auto;padding:20px;background:#ede8dc;">
-
-  <!-- Header -->
-  <div style="background:#2d5a1b;padding:22px 28px;border-radius:8px 8px 0 0;">
-    <h1 style="color:#ffffff;margin:0;font-size:22px;letter-spacing:0.5px;">🏞️ Salt River Daily Report</h1>
-    <p style="color:#c8e6c9;margin:5px 0 0;font-size:13px;font-family:Arial,sans-serif;">
-      Below Stewart Mountain Dam &bull; {reading_time}
-    </p>
-  </div>
-
-  <!-- Body card -->
-  <div style="background:#fffcf5;padding:28px;border:1px solid #d4c9b0;border-top:none;border-radius:0 0 8px 8px;">
-
-    <!-- CFS + height panel -->
-    <div style="background:#e8f4f8;border:1px solid #b0d4e8;border-radius:8px;padding:22px;text-align:center;margin-bottom:22px;">
-      <div style="font-size:64px;font-weight:bold;color:#1a6b9a;line-height:1;font-family:Arial,sans-serif;">
-        {cfs_display}
-        <span style="font-size:26px;font-weight:normal;color:#4a8aaa;">CFS</span>
-      </div>
-      <div style="font-size:17px;color:#4a6a7a;margin-top:8px;font-family:Arial,sans-serif;">
-        {height_display} gauge height
-      </div>
-      {f'<div style="margin-top:10px;font-size:13px;font-family:Arial,sans-serif;">{change_html}</div>' if change_html else ''}
-    </div>
-
+    return f"""
     <!-- Float day badge -->
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:13px;color:#6b5c3e;margin-bottom:8px;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;">
@@ -209,6 +171,80 @@ def build_html_email(
         Minimum threshold: {min_cfs} CFS
       </div>
     </div>
+"""
+
+
+def build_html_email(
+    current: dict,
+    history: list[dict],
+    alerts: list[dict],
+    config: dict,
+    chart_png: bytes | None = None,
+    weather: dict | None = None,
+) -> str:
+    cfs        = current.get("cfs")
+    height     = current.get("height_ft")
+    ts         = current.get("timestamp") or current.get("fetched_at", "")
+    min_cfs    = config.get("min_cfs")          # None = no float day badge
+    gauge_unit = config.get("gauge_unit", "cfs")
+    site_id    = config.get("gauge_site", "")
+    report_name    = config.get("report_name", "River Daily Report")
+    report_subtitle = config.get("report_subtitle", "")
+
+    reading_time = _fmt_ts(ts)
+    alert_html   = _alert_blocks(alerts)
+    change_html  = _change_summary(current, history, gauge_unit)
+
+    # Primary hero metric display
+    if gauge_unit == "height_ft":
+        hero_value   = f"{height:.2f}" if height is not None else "N/A"
+        hero_unit    = "ft"
+        hero_color   = "#1a6b9a"
+        hero_sub     = f"{cfs:.0f} CFS" if cfs is not None else ""
+        hero_sub_label = "discharge"
+        col1_header  = "Height (ft)"
+        col2_header  = "CFS"
+    else:
+        hero_value   = f"{cfs:.0f}" if cfs is not None else "N/A"
+        hero_unit    = "CFS"
+        hero_color   = "#1a6b9a"
+        hero_sub     = f"{height:.2f} ft" if height is not None else ""
+        hero_sub_label = "gauge height"
+        col1_header  = "CFS"
+        col2_header  = "Height (ft)"
+
+    history_html = _history_rows(history, gauge_unit)
+    float_section = _float_day_section(cfs, min_cfs) if min_cfs is not None else ""
+
+    footer_site = f"Site {site_id} &bull; {report_subtitle}" if site_id else report_subtitle
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:Georgia,'Times New Roman',serif;max-width:620px;margin:0 auto;padding:20px;background:#ede8dc;">
+
+  <!-- Header -->
+  <div style="background:#2d5a1b;padding:22px 28px;border-radius:8px 8px 0 0;">
+    <h1 style="color:#ffffff;margin:0;font-size:22px;letter-spacing:0.5px;">🏞️ {report_name}</h1>
+    <p style="color:#c8e6c9;margin:5px 0 0;font-size:13px;font-family:Arial,sans-serif;">
+      {report_subtitle} &bull; {reading_time}
+    </p>
+  </div>
+
+  <!-- Body card -->
+  <div style="background:#fffcf5;padding:28px;border:1px solid #d4c9b0;border-top:none;border-radius:0 0 8px 8px;">
+
+    <!-- Hero metric panel -->
+    <div style="background:#e8f4f8;border:1px solid #b0d4e8;border-radius:8px;padding:22px;text-align:center;margin-bottom:22px;">
+      <div style="font-size:64px;font-weight:bold;color:{hero_color};line-height:1;font-family:Arial,sans-serif;">
+        {hero_value}
+        <span style="font-size:26px;font-weight:normal;color:#4a8aaa;">{hero_unit}</span>
+      </div>
+      {f'<div style="font-size:17px;color:#4a6a7a;margin-top:8px;font-family:Arial,sans-serif;">{hero_sub} {hero_sub_label}</div>' if hero_sub else ''}
+      {f'<div style="margin-top:10px;font-size:13px;font-family:Arial,sans-serif;">{change_html}</div>' if change_html else ''}
+    </div>
+
+    {float_section}
 
     <!-- Alerts -->
     {f'<div style="margin-bottom:22px;">{alert_html}</div>' if alert_html else ''}
@@ -224,7 +260,7 @@ def build_html_email(
       <h3 style="color:#2d5a1b;margin:0 0 10px;font-size:14px;text-transform:uppercase;
                  letter-spacing:1px;font-family:Arial,sans-serif;">Year over Year</h3>
       <img src="cid:river_chart"
-           alt="CFS year-over-year chart"
+           alt="Year-over-year chart"
            style="width:100%;max-width:580px;border-radius:6px;border:1px solid #d4c9b0;">
     </div>
     <hr style="border:none;border-top:1px solid #d4c9b0;margin:0 0 18px;">''' if chart_png else ''}
@@ -238,8 +274,8 @@ def build_html_email(
       <thead>
         <tr style="background:#2d5a1b;color:#ffffff;">
           <th style="padding:9px 12px;text-align:left;font-weight:600;border-radius:4px 0 0 0;">Date / Time (MST)</th>
-          <th style="padding:9px 12px;text-align:right;font-weight:600;">CFS</th>
-          <th style="padding:9px 12px;text-align:right;font-weight:600;border-radius:0 4px 0 0;">Height (ft)</th>
+          <th style="padding:9px 12px;text-align:right;font-weight:600;">{col1_header}</th>
+          <th style="padding:9px 12px;text-align:right;font-weight:600;border-radius:0 4px 0 0;">{col2_header}</th>
         </tr>
       </thead>
       <tbody>
@@ -249,8 +285,8 @@ def build_html_email(
 
     <p style="color:#b0a080;font-size:11px;margin-top:24px;padding-top:12px;
               border-top:1px solid #d4c9b0;font-family:Arial,sans-serif;">
-      Data: USGS Water Data API &bull; Site 09502000 &bull; Salt River below Stewart Mountain Dam, AZ<br>
-      To change thresholds, edit <code>config.json</code> in your GitHub repository.
+      Data: USGS Water Data API &bull; {footer_site}<br>
+      To change settings, edit the config file in your GitHub repository.
     </p>
 
   </div>
