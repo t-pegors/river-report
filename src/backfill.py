@@ -3,34 +3,23 @@ Backfill historical daily values from the USGS daily collection.
 Called automatically by main.py when a chart year is missing data.
 
 USGS daily endpoint returns one mean record per day.
-Supports both CFS (discharge) and height_ft (gauge height / lake level).
+Supports CFS (discharge), gauge height (00065), and lake/reservoir elevation (00062).
 """
 
 import requests
 from datetime import date
 
-USGS_DAILY_URL = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/daily/items"
-PARAM_CFS    = "00060"   # Discharge, cubic feet per second
-PARAM_HEIGHT = "00065"   # Gauge height, feet
-STAT_MEAN    = "00003"   # daily mean
+USGS_DAILY_URL  = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/daily/items"
+PARAM_CFS       = "00060"   # Discharge, cubic feet per second
+PARAM_HEIGHT    = "00065"   # Gauge height, feet
+PARAM_ELEVATION = "00062"   # Reservoir/lake water surface elevation, feet above datum
+STAT_MEAN       = "00003"   # daily mean
 
 
-def _fetch_year(site_id: str, year: int, gauge_unit: str = "cfs") -> list[dict]:
+def _fetch_year_with_param(site_id: str, param_code: str, start: str, end: str) -> list[float | None]:
     """
-    Fetch daily mean values for an entire year (or year-to-date for the current year).
-
-    gauge_unit: "cfs" → fetch discharge; "height_ft" → fetch gauge height.
-    Returns a list of {"date": "YYYY-MM-DD", "cfs": float} or
-                      {"date": "YYYY-MM-DD", "height_ft": float}.
+    Raw fetch: returns a dict of {date_str: float} for the given parameter code.
     """
-    start = f"{year}-01-01"
-    end   = min(f"{year}-12-31", date.today().isoformat())
-
-    if start > date.today().isoformat():
-        return []
-
-    param_code = PARAM_HEIGHT if gauge_unit == "height_ft" else PARAM_CFS
-
     params = {
         "monitoring_location_id": f"USGS-{site_id}",
         "parameter_code": param_code,
@@ -50,12 +39,35 @@ def _fetch_year(site_id: str, year: int, gauge_unit: str = "cfs") -> list[dict]:
         if raw_val is None or not ts:
             continue
         day = ts[:10]
-        val = float(raw_val)
         if day not in results:
-            results[day] = val
+            results[day] = float(raw_val)
+    return results
+
+
+def _fetch_year(site_id: str, year: int, gauge_unit: str = "cfs") -> list[dict]:
+    """
+    Fetch daily mean values for an entire year (or year-to-date for the current year).
+
+    For height_ft gauges, tries reservoir elevation (00062) first, then stream gauge
+    height (00065) as a fallback — handles both lake and stream gauges transparently.
+
+    Returns a list of {"date": "YYYY-MM-DD", "cfs": float} or
+                      {"date": "YYYY-MM-DD", "height_ft": float}.
+    """
+    start = f"{year}-01-01"
+    end   = min(f"{year}-12-31", date.today().isoformat())
+
+    if start > date.today().isoformat():
+        return []
 
     if gauge_unit == "height_ft":
+        # Lakes/reservoirs use 00062; fall back to 00065 for stream height gauges
+        results = _fetch_year_with_param(site_id, PARAM_ELEVATION, start, end)
+        if not results:
+            results = _fetch_year_with_param(site_id, PARAM_HEIGHT, start, end)
         return [{"date": d, "height_ft": v} for d, v in sorted(results.items())]
+
+    results = _fetch_year_with_param(site_id, PARAM_CFS, start, end)
     return [{"date": d, "cfs": v} for d, v in sorted(results.items())]
 
 

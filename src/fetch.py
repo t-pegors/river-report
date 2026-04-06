@@ -15,8 +15,9 @@ from datetime import datetime, timezone
 USGS_LATEST_URL = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/latest-continuous/items"
 
 # USGS parameter codes
-PARAM_CFS    = "00060"   # Discharge, cubic feet per second
-PARAM_HEIGHT = "00065"   # Gauge height, feet
+PARAM_CFS       = "00060"   # Discharge, cubic feet per second
+PARAM_HEIGHT    = "00065"   # Gauge height, feet
+PARAM_ELEVATION = "00062"   # Reservoir/lake water surface elevation, feet above datum
 
 
 def get_latest_reading(site_id: str) -> dict:
@@ -56,7 +57,9 @@ def get_latest_reading(site_id: str) -> dict:
         if param_code == PARAM_CFS:
             result["cfs"]       = float(raw_val)
             result["timestamp"] = ts
-        elif param_code == PARAM_HEIGHT:
+        elif param_code in (PARAM_HEIGHT, PARAM_ELEVATION):
             result["height_ft"] = float(raw_val)
+            if result["timestamp"] is None:
+                result["timestamp"] = ts
 
     return result
