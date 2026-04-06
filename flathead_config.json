@@ -6,7 +6,7 @@
   "gauge_unit": "height_ft",
   "chart_title": "Flathead Lake Level — Year over Year",
   "alert_change_pct": 10,
-  "chart_years": [2024, 2025, 2026],
+  "chart_years": [2021, 2022, 2023, 2024, 2025, 2026],
   "weather_lat": 47.6878,
   "weather_lon": -114.1661
 }
